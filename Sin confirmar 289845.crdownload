@@ -1,0 +1,814 @@
+import pygame
+import math
+import sys
+
+pygame.init()
+
+# ==========================================
+# CONFIGURACIÓN
+# ==========================================
+
+ANCHO = 900
+ALTO = 600
+
+pantalla = pygame.display.set_mode((ANCHO, ALTO))
+pygame.display.set_caption("Drift Racing")
+
+reloj = pygame.time.Clock()
+
+# ==========================================
+# COLORES
+# ==========================================
+
+BLANCO = (255, 255, 255)
+NEGRO = (15, 15, 18)
+GRIS = (65, 65, 70)
+GRIS_CLARO = (110, 110, 115)
+VERDE = (35, 130, 65)
+AZUL = (40, 130, 255)
+ROJO = (220, 50, 50)
+AMARILLO = (255, 210, 30)
+NARANJA = (255, 120, 20)
+
+# ==========================================
+# FUENTES
+# ==========================================
+
+titulo = pygame.font.SysFont("Arial", 60, bold=True)
+fuente = pygame.font.SysFont("Arial", 30, bold=True)
+pequena = pygame.font.SysFont("Arial", 22)
+
+# ==========================================
+# PISTA
+# ==========================================
+
+puntos_pista = [
+    (150, 420),
+    (100, 250),
+    (170, 120),
+    (350, 70),
+    (570, 100),
+    (750, 220),
+    (720, 400),
+    (520, 500),
+    (320, 470)
+]
+
+# ==========================================
+# JUGADOR
+# ==========================================
+
+carro = {
+    "x": 150,
+    "y": 420,
+    "angulo": -90,
+    "velocidad": 0
+}
+
+# ==========================================
+# VARIABLES DEL JUEGO
+# ==========================================
+
+puntos = 0
+vuelta = 1
+tiempo = 0
+
+derrape = False
+pausa = False
+
+# ==========================================
+# BOTÓN
+# ==========================================
+
+def dibujar_boton(texto, x, y, ancho, alto):
+
+    rect = pygame.Rect(x, y, ancho, alto)
+
+    pygame.draw.rect(
+        pantalla,
+        (35, 35, 45),
+        rect,
+        border_radius=12
+    )
+
+    pygame.draw.rect(
+        pantalla,
+        AZUL,
+        rect,
+        3,
+        border_radius=12
+    )
+
+    texto_img = fuente.render(texto, True, BLANCO)
+
+    pantalla.blit(
+        texto_img,
+        (
+            x + ancho // 2 - texto_img.get_width() // 2,
+            y + alto // 2 - texto_img.get_height() // 2
+        )
+    )
+
+    return rect
+
+
+# ==========================================
+# TEXTO CENTRADO
+# ==========================================
+
+def texto_centrado(texto, fuente_usada, color, y):
+
+    imagen = fuente_usada.render(texto, True, color)
+
+    pantalla.blit(
+        imagen,
+        (
+            ANCHO // 2 - imagen.get_width() // 2,
+            y
+        )
+    )
+
+
+# ==========================================
+# DIBUJAR PISTA
+# ==========================================
+
+def dibujar_pista():
+
+    pantalla.fill(VERDE)
+
+    # Pista exterior
+
+    pygame.draw.lines(
+        pantalla,
+        BLANCO,
+        True,
+        puntos_pista,
+        125
+    )
+
+    # Asfalto
+
+    pygame.draw.lines(
+        pantalla,
+        GRIS,
+        True,
+        puntos_pista,
+        105
+    )
+
+    # Línea central
+
+    pygame.draw.lines(
+        pantalla,
+        AMARILLO,
+        True,
+        puntos_pista,
+        3
+    )
+
+    # Bordes
+
+    pygame.draw.lines(
+        pantalla,
+        BLANCO,
+        True,
+        puntos_pista,
+        2
+    )
+
+
+# ==========================================
+# DIBUJAR CARRO
+# ==========================================
+
+def dibujar_carro():
+
+    superficie = pygame.Surface((70, 100), pygame.SRCALPHA)
+
+    # Carro
+
+    pygame.draw.rect(
+        superficie,
+        AZUL,
+        (10, 5, 50, 90),
+        border_radius=12
+    )
+
+    # Ventanas
+
+    pygame.draw.rect(
+        superficie,
+        (150, 220, 255),
+        (17, 20, 36, 25),
+        border_radius=5
+    )
+
+    pygame.draw.rect(
+        superficie,
+        (150, 220, 255),
+        (17, 55, 36, 20),
+        border_radius=5
+    )
+
+    # Luces
+
+    pygame.draw.circle(
+        superficie,
+        AMARILLO,
+        (18, 10),
+        5
+    )
+
+    pygame.draw.circle(
+        superficie,
+        AMARILLO,
+        (52, 10),
+        5
+    )
+
+    # Llantas
+
+    pygame.draw.rect(
+        superficie,
+        NEGRO,
+        (3, 20, 8, 25)
+    )
+
+    pygame.draw.rect(
+        superficie,
+        NEGRO,
+        (59, 20, 8, 25)
+    )
+
+    pygame.draw.rect(
+        superficie,
+        NEGRO,
+        (3, 60, 8, 25)
+    )
+
+    pygame.draw.rect(
+        superficie,
+        NEGRO,
+        (59, 60, 8, 25)
+    )
+
+    # Rotar
+
+    superficie_rotada = pygame.transform.rotate(
+        superficie,
+        -carro["angulo"]
+    )
+
+    rect = superficie_rotada.get_rect(
+        center=(carro["x"], carro["y"])
+    )
+
+    pantalla.blit(
+        superficie_rotada,
+        rect
+    )
+
+
+# ==========================================
+# REINICIAR
+# ==========================================
+
+def reiniciar():
+
+    global puntos
+    global vuelta
+    global tiempo
+    global derrape
+    global pausa
+
+    carro["x"] = 150
+    carro["y"] = 420
+    carro["angulo"] = -90
+    carro["velocidad"] = 0
+
+    puntos = 0
+    vuelta = 1
+    tiempo = 0
+
+    derrape = False
+    pausa = False
+
+
+# ==========================================
+# MENÚ PRINCIPAL
+# ==========================================
+
+def menu():
+
+    while True:
+
+        pantalla.fill((12, 15, 30))
+
+        texto_centrado(
+            "DRIFT RACING",
+            titulo,
+            AZUL,
+            90
+        )
+
+        texto_centrado(
+            "DOMINA LAS CURVAS",
+            fuente,
+            BLANCO,
+            160
+        )
+
+        jugar = dibujar_boton(
+            "JUGAR",
+            300,
+            240,
+            300,
+            60
+        )
+
+        instrucciones = dibujar_boton(
+            "INSTRUCCIONES",
+            300,
+            320,
+            300,
+            60
+        )
+
+        salir = dibujar_boton(
+            "SALIR",
+            300,
+            400,
+            300,
+            60
+        )
+
+        for evento in pygame.event.get():
+
+            if evento.type == pygame.QUIT:
+
+                pygame.quit()
+                sys.exit()
+
+            if evento.type == pygame.MOUSEBUTTONDOWN:
+
+                if jugar.collidepoint(evento.pos):
+
+                    reiniciar()
+                    return "jugar"
+
+                if instrucciones.collidepoint(evento.pos):
+
+                    instrucciones_menu()
+
+                if salir.collidepoint(evento.pos):
+
+                    pygame.quit()
+                    sys.exit()
+
+        pygame.display.update()
+
+        reloj.tick(60)
+
+
+# ==========================================
+# INSTRUCCIONES
+# ==========================================
+
+def instrucciones_menu():
+
+    while True:
+
+        pantalla.fill((12, 15, 30))
+
+        texto_centrado(
+            "INSTRUCCIONES",
+            titulo,
+            AZUL,
+            50
+        )
+
+        instrucciones = [
+            "↑  Acelerar",
+            "↓  Frenar",
+            "←  Girar a la izquierda",
+            "→  Girar a la derecha",
+            "ESPACIO  Activar derrape",
+            "P  Pausar la carrera",
+            "ESC  Volver al menú",
+            "",
+            "Consigue puntos derrapando en las curvas.",
+            "Completa 3 vueltas para ganar."
+        ]
+
+        y = 145
+
+        for linea in instrucciones:
+
+            texto_centrado(
+                linea,
+                pequena,
+                BLANCO,
+                y
+            )
+
+            y += 35
+
+        volver = dibujar_boton(
+            "VOLVER",
+            330,
+            510,
+            240,
+            55
+        )
+
+        for evento in pygame.event.get():
+
+            if evento.type == pygame.QUIT:
+
+                pygame.quit()
+                sys.exit()
+
+            if evento.type == pygame.MOUSEBUTTONDOWN:
+
+                if volver.collidepoint(evento.pos):
+
+                    return
+
+            if evento.type == pygame.KEYDOWN:
+
+                if evento.key == pygame.K_ESCAPE:
+
+                    return
+
+        pygame.display.update()
+
+        reloj.tick(60)
+
+
+# ==========================================
+# PANTALLA FINAL
+# ==========================================
+
+def pantalla_final():
+
+    while True:
+
+        pantalla.fill((12, 15, 30))
+
+        texto_centrado(
+            "¡CARRERA TERMINADA!",
+            titulo,
+            AMARILLO,
+            100
+        )
+
+        texto_centrado(
+            f"PUNTUACIÓN: {int(puntos)}",
+            fuente,
+            BLANCO,
+            210
+        )
+
+        texto_centrado(
+            "¡Buen trabajo!",
+            fuente,
+            AZUL,
+            260
+        )
+
+        jugar = dibujar_boton(
+            "JUGAR OTRA VEZ",
+            280,
+            330,
+            340,
+            60
+        )
+
+        menu_principal = dibujar_boton(
+            "MENÚ PRINCIPAL",
+            280,
+            410,
+            340,
+            60
+        )
+
+        for evento in pygame.event.get():
+
+            if evento.type == pygame.QUIT:
+
+                pygame.quit()
+                sys.exit()
+
+            if evento.type == pygame.MOUSEBUTTONDOWN:
+
+                if jugar.collidepoint(evento.pos):
+
+                    reiniciar()
+                    return "jugar"
+
+                if menu_principal.collidepoint(evento.pos):
+
+                    return "menu"
+
+        pygame.display.update()
+
+        reloj.tick(60)
+
+
+# ==========================================
+# JUEGO
+# ==========================================
+
+def jugar():
+
+    global puntos
+    global vuelta
+    global tiempo
+    global derrape
+    global pausa
+
+    ejecutando = True
+
+    while ejecutando:
+
+        reloj.tick(60)
+
+        for evento in pygame.event.get():
+
+            if evento.type == pygame.QUIT:
+
+                pygame.quit()
+                sys.exit()
+
+            if evento.type == pygame.KEYDOWN:
+
+                if evento.key == pygame.K_ESCAPE:
+
+                    return "menu"
+
+                if evento.key == pygame.K_p:
+
+                    pausa = not pausa
+
+        # ==================================
+        # PAUSA
+        # ==================================
+
+        if pausa:
+
+            dibujar_pista()
+            dibujar_carro()
+
+            pygame.draw.rect(
+                pantalla,
+                (10, 10, 20),
+                (200, 180, 500, 220),
+                border_radius=20
+            )
+
+            texto_centrado(
+                "PAUSA",
+                titulo,
+                BLANCO,
+                210
+            )
+
+            texto_centrado(
+                "Presiona P para continuar",
+                fuente,
+                AZUL,
+                290
+            )
+
+            texto_centrado(
+                "ESC para salir",
+                pequena,
+                BLANCO,
+                340
+            )
+
+            pygame.display.update()
+
+            continue
+
+        # ==================================
+        # CONTROLES
+        # ==================================
+
+        teclas = pygame.key.get_pressed()
+
+        acelerar = teclas[pygame.K_UP]
+        frenar = teclas[pygame.K_DOWN]
+        izquierda = teclas[pygame.K_LEFT]
+        derecha = teclas[pygame.K_RIGHT]
+
+        derrape = teclas[pygame.K_SPACE]
+
+        # Acelerar
+
+        if acelerar:
+
+            carro["velocidad"] += 0.15
+
+        else:
+
+            carro["velocidad"] *= 0.985
+
+        # Frenar
+
+        if frenar:
+
+            carro["velocidad"] -= 0.20
+
+        # Limitar velocidad
+
+        if carro["velocidad"] > 7:
+
+            carro["velocidad"] = 7
+
+        if carro["velocidad"] < 0:
+
+            carro["velocidad"] = 0
+
+        # ==================================
+        # GIRAR
+        # ==================================
+
+        if izquierda:
+
+            carro["angulo"] -= 3.5
+
+        if derecha:
+
+            carro["angulo"] += 3.5
+
+        # ==================================
+        # MOVIMIENTO
+        # ==================================
+
+        radianes = math.radians(
+            carro["angulo"]
+        )
+
+        carro["x"] += (
+            math.cos(radianes)
+            * carro["velocidad"]
+        )
+
+        carro["y"] += (
+            math.sin(radianes)
+            * carro["velocidad"]
+        )
+
+        # ==================================
+        # DERRAPE
+        # ==================================
+
+        if derrape and carro["velocidad"] > 2:
+
+            puntos += 2
+
+            # Efecto visual de derrape
+
+            pygame.draw.circle(
+                pantalla,
+                (30, 30, 30),
+                (
+                    int(carro["x"] - 25),
+                    int(carro["y"] + 20)
+                ),
+                5
+            )
+
+            pygame.draw.circle(
+                pantalla,
+                (30, 30, 30),
+                (
+                    int(carro["x"] + 25),
+                    int(carro["y"] + 20)
+                ),
+                5
+            )
+
+        # ==================================
+        # PUNTOS POR VELOCIDAD
+        # ==================================
+
+        puntos += carro["velocidad"] * 0.01
+
+        # ==================================
+        # TIEMPO
+        # ==================================
+
+        tiempo += 1 / 60
+
+        # Cada 20 segundos aumenta vuelta
+
+        if tiempo >= 20:
+
+            vuelta += 1
+            tiempo = 0
+
+        # ==================================
+        # FINAL
+        # ==================================
+
+        if vuelta > 3:
+
+            return "final"
+
+        # ==================================
+        # LIMITES
+        # ==================================
+
+        if carro["x"] < 60:
+            carro["x"] = 60
+
+        if carro["x"] > ANCHO - 60:
+            carro["x"] = ANCHO - 60
+
+        if carro["y"] < 60:
+            carro["y"] = 60
+
+        if carro["y"] > ALTO - 60:
+            carro["y"] = ALTO - 60
+
+        # ==================================
+        # DIBUJAR
+        # ==================================
+
+        dibujar_pista()
+
+        dibujar_carro()
+
+        # HUD
+
+        pygame.draw.rect(
+            pantalla,
+            (20, 20, 25),
+            (15, 15, 260, 95),
+            border_radius=10
+        )
+
+        texto = pequena.render(
+            f"Puntos: {int(puntos)}",
+            True,
+            BLANCO
+        )
+
+        pantalla.blit(
+            texto,
+            (30, 30)
+        )
+
+        texto = pequena.render(
+            f"Vuelta: {vuelta}/3",
+            True,
+            BLANCO
+        )
+
+        pantalla.blit(
+            texto,
+            (30, 60)
+        )
+
+        texto = pequena.render(
+            f"Velocidad: {int(carro['velocidad'])}",
+            True,
+            AMARILLO
+        )
+
+        pantalla.blit(
+            texto,
+            (140, 60)
+        )
+
+        pygame.display.update()
+
+
+# ==========================================
+# PROGRAMA PRINCIPAL
+# ==========================================
+
+while True:
+
+    resultado = menu()
+
+    if resultado == "jugar":
+
+        resultado = jugar()
+
+        if resultado == "final":
+
+            resultado = pantalla_final()
+
+            if resultado == "jugar":
+
+                continue
+
+            elif resultado == "menu":
+
+                continue
+
+pygame.quit()
